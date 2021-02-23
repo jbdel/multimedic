@@ -1,4 +1,4 @@
 example:
 ```
-python bin/train.py config/new/rnn.yml
+python bin/train.py config/mediaca/rnn.yml
 ```
