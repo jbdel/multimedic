@@ -17,4 +17,4 @@ class NMTEnsemblor(NMTValidator):
             ckpts = [sorted(ckpts, reverse=True)[0]]
 
         for ckpt in ckpts:
-            self.models.append(self.create_model(state_dict=ckpt).eval())
+            self.models.append(self.create_model(state_dict=ckpt).cuda().eval())

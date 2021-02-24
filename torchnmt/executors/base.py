@@ -41,8 +41,7 @@ class Executor(object):
         model = eval(arch)(**opts)
 
         if state_dict is not None:
-            state_dict = torch.load(state_dict)
-            model.load_state_dict(state_dict)
+            model.load_state_dict(torch.load(state_dict))
             print(state_dict, 'loaded.')
         else:
             print('Model {} created.'.format(type(model).__name__))
