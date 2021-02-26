@@ -27,19 +27,20 @@ def print_args(opts):
 
 
 class CheckpointSaver(object):
-    def __init__(self, root):
+    def __init__(self, root, seed):
         self.root = root
+        self.seed = seed
         self.current_tag = None
         self.current_step = None
         os.makedirs(os.path.dirname(self.root), exist_ok=True)
 
     def save(self, model, tag, global_step):
         if self.current_tag is not None:
-            old_ckpt = os.path.join(self.root, '{}_{}.pth'.format(self.current_tag, self.current_step))
+            old_ckpt = os.path.join(self.root, '{}_{}_{}.pth'.format(self.seed, self.current_tag, self.current_step))
             assert os.path.exists(old_ckpt)
             os.remove(old_ckpt)
 
-        path = os.path.join(self.root, '{}_{}.pth'.format(tag, global_step))
+        path = os.path.join(self.root, '{}_{}_{}.pth'.format(self.seed, tag, global_step))
         torch.save(model, path)
         print('{} saved.'.format(path))
 

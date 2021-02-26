@@ -18,3 +18,6 @@ class NMTEnsemblor(NMTValidator):
 
         for ckpt in ckpts:
             self.models.append(self.create_model(state_dict=ckpt).cuda().eval())
+
+        # create train dataset to set up the right dataset options
+        self.create_data_loader("train")

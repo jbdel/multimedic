@@ -22,7 +22,7 @@ def evaluation(models, opts, dl, lp_alpha=0.0):
     max_batch_size = opts.batch_size
     k = opts.beam_width
     inf = -1000
-    max_len = opts.max_len
+    max_len = dl.dataset.src_len
 
     results = []
 
@@ -65,7 +65,7 @@ def evaluation(models, opts, dl, lp_alpha=0.0):
         tile = range(batch_size)
 
         # Encode source modalities
-        ctx_dicts = [encode(batch['src']) for encode in encoders]
+        ctx_dicts = [encode(**batch) for encode in encoders]
 
         # Sanity check one of the context dictionaries for dimensions
         check_context_ndims(ctx_dicts[0])
@@ -155,5 +155,8 @@ def evaluation(models, opts, dl, lp_alpha=0.0):
 
     ret_hyps = [vocab.strip_beos_w(vocab.idxs2words(hyp))
                 for hyp in results]
+
+    ret_refs = list(map(' '.join, ret_refs))
+    ret_hyps = list(map(' '.join, ret_hyps))
 
     return 0.0, ret_refs, ret_hyps

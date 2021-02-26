@@ -2,18 +2,22 @@ import numpy as np
 import torch
 import tqdm
 import sys
+import time
 
-import torch.nn as nn
 from .base import Executor
 from .validator import NMTValidator
+from .utils import CheckpointSaver
 
 
 class Trainer(Executor):
     def __init__(self, opts, val_opts):
         super().__init__(opts)
 
+        self.seed = self.set_seed()
+        self.saver = CheckpointSaver(root='ckpt/{}'.format(self.opts.name), seed=self.seed)
+
         # Dataloader
-        self.dl = self.create_data_loader('train', shuffle=True)
+        self.dl = self.create_data_loader('train')
 
         # Model
         self.model = super().create_model()
@@ -21,13 +25,13 @@ class Trainer(Executor):
         # self.model = nn.DataParallel(self.model)
 
         # Evaluator
-        self.testor = NMTValidator(models=[self.model], opts=val_opts)
+        self.evaluator = NMTValidator(models=[self.model], opts=val_opts)
 
         # Hyper
         self.lr = self.opts.lr
         self.early_stop = 0
         self.optimizer = self.create_optimizer()
-        self.writer = self.create_writer('train')
+        print('\033[1m\033[91mModel {} created \033[0m'.format(type(self.model).__name__))
         print(self.model)
 
     def create_optimizer(self):
@@ -60,16 +64,19 @@ class Trainer(Executor):
         self.pbar = tqdm.tqdm(self.dl, total=len(self.dl))
         for batch in self.pbar:
             self.pbar.set_description(
-                'Epoch {}, Lr {}, Loss {:.2f}, ROUGE {:.2f}, ES {}'.format(self.epoch + 1,
-                                                                           self.lr,
-                                                                           self.loss,
-                                                                           self.testor.best_rouge,
-                                                                           self.early_stop))
+                'Epoch {}, Lr {}, Loss {:.2f}, ROUGE {:.2f}, ES {}'.format(
+                    self.epoch + 1,
+                    self.lr,
+                    self.loss,
+                    self.evaluator.best_rouge,
+                    self.early_stop,
+                ))
             self.batch = batch
             yield
             self.iteration += 1
             # if self.iteration == 1:
             #     break
+
 
     def update_lr(self):
         lr = self.opts.lr * 0.95 ** (self.epoch // 2)
@@ -81,7 +88,6 @@ class Trainer(Executor):
         if self.lr == self.opts.lr_min:
             return
 
-        # static variable for patience
         self.current_patience += 1
 
         # Apply decay if applicable
@@ -102,18 +108,16 @@ class NMTTrainer(Trainer):
         self.model.train()
 
     def update(self):
-        loss = self.model(**self.batch, **vars(self.opts))['loss']
-        loss.backward()
-        self.optimizer.step()
         self.optimizer.zero_grad()
 
-        self.loss = loss.item()
-        self.ppl = np.exp(self.loss)
-        self.losses.append(self.loss)
+        time_f = time.time()
+        loss = self.model(**self.batch)['loss']
+        loss.backward()
+        self.optimizer.step()
+        self.time_forward = time.time() - time_f
 
-    def on_iteration_end(self):
-        self.writer.add_scalar('batch-ppl', self.ppl, self.iteration)
-        self.writer.add_scalar('batch-loss', self.loss, self.iteration)
+        self.loss = loss.item()
+        self.losses.append(self.loss)
 
     def on_epoch_end(self):
         loss = np.mean(self.losses)
@@ -122,20 +126,17 @@ class NMTTrainer(Trainer):
         print('Avg:\tloss: {:.4g}, ppl: {:.4g}'.format(loss,
                                                        ppl))
 
-        self.writer.add_scalar('loss', loss, self.epoch)
-        self.writer.add_scalar('ppl', ppl, self.epoch)
-        # self.writer.flush()  # requires: https://github.com/lanpa/tensorboardX/pull/451
-
         # self.update_lr()
-        self.testor.epoch = self.epoch
-        self.testor.start()
+        self.evaluator.epoch = self.epoch
+        self.evaluator.start()
 
         # Fetch eval score and compute early stop
-        mean_rouge = np.mean([s['ROUGE'] for s in self.testor.scores])
-        if mean_rouge > self.testor.best_rouge:
+        mean_rouge = np.mean([s['ROUGE'] for s in self.evaluator.scores])
+        if mean_rouge > self.evaluator.best_rouge:
             self.saver.save(model=self.model.state_dict(), tag=mean_rouge, global_step=self.epoch)
-            self.testor.best_rouge = mean_rouge
+            self.evaluator.best_rouge = mean_rouge
             self.early_stop = 0
+            self.current_patience = 0
         else:
             self.early_stop += 1
             self.update_lr_plateau()

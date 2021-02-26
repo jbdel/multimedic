@@ -1,11 +1,12 @@
-name: myexp1rnn
+name: myexp1rnnavgpool
 dataset:
-  proto: TextDatasetRNN
+  proto: MultiDatasetRNN
   root: data/mediaca
   src: findings.tok
   tgt: impression.tok
-  max_len: 80
-  use_bucket: false
+  npy: avgpool.npy
+  max_len: 100
+  use_bucket: True
 
 model:
   proto: RNN
@@ -31,9 +32,9 @@ model:
     n_vocab: 7167 # impression
     rnn_type: GRU
     tied_emb: True
-    dec_init: zero
+    dec_init: feats
     dec_init_activ: tanh
-    dec_init_size: None
+    dec_init_size: 2048
     att_type: mlp
     att_activ: tanh
     att_bottleneck: ctx

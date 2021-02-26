@@ -124,7 +124,7 @@ class ConditionalDecoder(nn.Module):
                 return self.ff_dec_init(ctx.sum(0) / ctx_mask.sum(0).unsqueeze(1))
         elif self.dec_init == 'feats':
             ctx, _ = ctx_dict['feats']
-            return self.ff_dec_init(ctx)
+            return self.ff_dec_init(ctx.squeeze(0))
         else:
             raise NotImplementedError(self.dec_init)
 

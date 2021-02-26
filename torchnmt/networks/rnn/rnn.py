@@ -26,10 +26,10 @@ class RNN(nn.Module):
             with torch.no_grad():
                 self.enc.emb.weight.data[0].fill_(0)
 
-    def encode(self, src, **kwargs):
+    def encode(self, src, feats=None, **kwargs):
         d = {'enc': self.enc(src)}
-        # if 'feats' in kwargs: # todo
-        #     d['feats'] = (kwargs[''], None)
+        if feats is not None:
+            d['feats'] = (feats.cuda(), None)
         return d
 
     def forward(self, src, tgt, **kwargs):

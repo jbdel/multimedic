@@ -10,9 +10,11 @@ from tensorboardX import SummaryWriter
 
 from torchnmt.networks import *
 from torchnmt.datasets import *
+from torchnmt.datasets import BucketBatchSampler
+from torch.utils.data.sampler import BatchSampler, SequentialSampler, RandomSampler
 
-from .utils import CheckpointSaver
 from .utils import print_args
+import time
 
 
 class EpochSkipper(Exception):
@@ -24,11 +26,9 @@ class IterationSkipper(Exception):
 
 
 class Executor(object):
-    def __init__(self, opts, random_seed=7):
+    def __init__(self, opts):
         self.opts = opts
         print_args(opts)
-        self.saver = CheckpointSaver('ckpt/{}'.format(self.opts.name))
-        self.set_seed(random_seed)
 
     def create_writer(self, split):
         return SummaryWriter('ckpt/{}/runs/{}'.format(self.opts.name, split))
@@ -43,8 +43,6 @@ class Executor(object):
         if state_dict is not None:
             model.load_state_dict(torch.load(state_dict))
             print(state_dict, 'loaded.')
-        else:
-            print('Model {} created.'.format(type(model).__name__))
         return model
 
     def create_dataset(self, split):
@@ -54,25 +52,50 @@ class Executor(object):
         opts = vars(copy.deepcopy(opts))
         return eval(dataset)(split=split, **opts)
 
-    def create_data_loader(self, split, shuffle=False):
+    def create_data_loader(self, split):
         dataset = self.create_dataset(split)
-
         if hasattr(dataset, 'get_collate_fn'):
             collate_fn = dataset.get_collate_fn()
         else:
             collate_fn = default_collate
 
-        return DataLoader(dataset, self.opts.batch_size,
-                          shuffle=shuffle,
-                          num_workers=4,
-                          collate_fn=collate_fn)
+        if not hasattr(self.opts.dataset, 'use_bucket'):
+            self.opts.dataset.use_bucket = False
 
-    def set_seed(self, seed):
-        torch.manual_seed(seed)  # cpu
-        torch.cuda.manual_seed(seed)  # gpu
-        np.random.seed(seed)  # numpy
-        random.seed(seed)  # random and transforms
-        torch.backends.cudnn.deterministic = True  # cudnn
+        if split == 'train':
+            print('\033[1m\033[91mDataLoader \033[0m')
+            if self.opts.dataset.use_bucket:
+                sort_lens = dataset.lengths
+                sampler = BucketBatchSampler(
+                    batch_size=self.opts.batch_size,
+                    sort_lens=sort_lens,
+                    max_len=dataset.src_len)
+            else:
+                sampler = BatchSampler(
+                    RandomSampler(dataset),
+                    batch_size=self.opts.batch_size, drop_last=False)
+            print('Using \033[1m\033[94m' + type(sampler.sampler).__name__ + '\033[0m')
+
+        else:  # eval or test
+            sampler = BatchSampler(
+                SequentialSampler(dataset),
+                batch_size=self.opts.batch_size, drop_last=False)
+
+        return DataLoader(dataset,
+                          # num_workers=4,
+                          collate_fn=collate_fn,
+                          batch_sampler=sampler)
+
+    def set_seed(self, seed=None):
+        if seed is None:
+            seed = time.time()
+
+        seed = int(seed)
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed(seed)
+        return seed
 
     def start(self):
         for _ in self:

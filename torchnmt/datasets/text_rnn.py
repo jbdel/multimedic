@@ -5,33 +5,49 @@ from torch.nn.utils.rnn import pad_sequence
 from .utils import Vocab
 
 
+class TextDatasetRNNStatic:
+    max_len = None
+    src_vocab = None
+    tgt_vocab = None
+
+
 class TextDatasetRNN(Dataset):
     def __init__(self, root, split, src, tgt, vocab_share=False, max_len=80, **kwargs):
-        samples = self.make_samples(root, 'train', src, tgt)
-
-        if vocab_share:
-            self.src_vocab = Vocab([*map(lambda x: x[0], samples),
-                                    *map(lambda x: x[1], samples)])
-            self.tgt_vocab = self.src_vocab
-        else:
-            self.src_vocab = Vocab(map(lambda x: x[0], samples))
-            self.tgt_vocab = Vocab(map(lambda x: x[1], samples))
+        self.root = root
+        self.split = split
+        self.samples = self.make_samples(root, split, src, tgt)
 
         if split == 'train':
-            print('src_vocab', self.src_vocab)
-            print('tgt_vocab', self.tgt_vocab)
-            self.samples = samples
-            self.max_len = max_len
+            # Create vocab
+            if vocab_share:
+                TextDatasetRNNStatic.src_vocab = Vocab([*map(lambda x: x[0], self.samples),
+                                               *map(lambda x: x[1], self.samples)])
+                TextDatasetRNNStatic.tgt_vocab = TextDatasetRNNStatic.src_vocab
+            else:
+                TextDatasetRNNStatic.src_vocab = Vocab(map(lambda x: x[0], self.samples))
+                TextDatasetRNNStatic.tgt_vocab = Vocab(map(lambda x: x[1], self.samples))
+
+            TextDatasetRNNStatic.max_len = max_len
+
+            print('src_vocab', TextDatasetRNNStatic.src_vocab)
+            print('tgt_vocab', TextDatasetRNNStatic.tgt_vocab)
+            print('train_max_len', TextDatasetRNNStatic.max_len)
+            self.src_len, self.tgt_len = max_len, max_len
 
         else:
-            self.samples = self.make_samples(root, split, src, tgt)
-            self.max_len = 999
+            # eval or test time, cant afford to mess with ground-truth
+            self.src_len, self.tgt_len = TextDatasetRNNStatic.max_len, 999
 
+        self.src_vocab = TextDatasetRNNStatic.src_vocab
+        self.tgt_vocab = TextDatasetRNNStatic.tgt_vocab
         self.processed_samples = []
+        self.lengths = []
+
         for idx in range(len(self.samples)):
             src, tgt = self.samples[idx]
-            src = ['<s>'] + src[:self.max_len] + ['</s>']
-            tgt = ['<s>'] + tgt[:self.max_len] + ['</s>']
+            self.lengths.append(len(src))
+            src = ['<s>'] + src[:self.src_len] + ['</s>']
+            tgt = ['<s>'] + tgt[:self.tgt_len] + ['</s>']
             self.processed_samples.append((
                 torch.tensor(self.src_vocab.words2idxs(src)).long(),
                 torch.tensor(self.tgt_vocab.words2idxs(tgt)).long())
@@ -61,11 +77,9 @@ class TextDatasetRNN(Dataset):
 
     def get_collate_fn(self):
         def collate_fn(batch):
-            collated = {}
-            collated['src'] = pad_sequence(
-                [s['src'] for s in batch], batch_first=False)
-            collated['tgt'] = pad_sequence(
-                [s['tgt'] for s in batch], batch_first=False)
+            collated = {'src': pad_sequence(
+                [s['src'] for s in batch], batch_first=False), 'tgt': pad_sequence(
+                [s['tgt'] for s in batch], batch_first=False)}
 
             return collated
 

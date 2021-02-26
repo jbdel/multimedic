@@ -7,7 +7,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.utils.rnn import pad_packed_sequence
 
-
 from .encoders import TransformerEncoder
 from .decoders import TransformerDecoder
 from .utils import padding_mask, subsequent_mask, get_n_params
@@ -21,35 +20,36 @@ class Transformer(nn.Module):
         encoder_func = encoder.proto
         decoder_func = decoder.proto
 
-        self.encoder = eval(encoder_func)(**vars(encoder))
-        self.decoder = eval(decoder_func)(**vars(decoder))
+        self.enc = eval(encoder_func)(**vars(encoder))
+        self.dec = eval(decoder_func)(**vars(decoder))
+        self.pad = Vocab.extra2idx('<pad>')
 
         if vocab_share:
-            self.decoder.embed = self.encoder.embed
+            self.dec.embed = self.enc.embed
 
-    def forward(self, src, tgt=None, **_):
-        """
-        Args:
-            src: packed sequence (*, input_dim)
-            tgt: packed sequence (*, output_dim)
-        """
-        pad = Vocab.extra2idx('<pad>')
-        src, src_len = pad_packed_sequence(src, True, pad)
-        src_mask = padding_mask(src_len)
+    def encode(self, src, **kwargs):
+        # src, src_len = pad_packed_sequence(src, True, self.pad)
+        print(src.shape)
+        # src_mask = padding_mask(src_len)
+        # print(src_mask)
+        sys.exit()
+
         src = src.cuda()
         src_mask = src_mask.cuda()
-        mem = self.encoder(src, src_mask)
+        mem = self.enc(src, src_mask)
+        return {'enc': (mem, src_mask)}
 
-        ret = {'loss': 0.0}
-
+    def decode(self, tgt, ctx_dict):
+        mem, src_mask = ctx_dict['enc']
+        logp, loss = 0., 0.
         if tgt is not None:
-            tgt, tgt_len = pad_packed_sequence(tgt, True, pad)
+            tgt, tgt_len = pad_packed_sequence(tgt, True, self.pad)
             tgt_mask = padding_mask(tgt_len) & subsequent_mask(tgt_len)
 
             tgt = tgt.cuda()
             tgt_mask = tgt_mask.cuda()
 
-            outputs = self.decoder(tgt, mem, src_mask, tgt_mask)
+            outputs = self.dec(tgt, mem, src_mask, tgt_mask)
             logp = F.log_softmax(outputs, dim=-1)
 
             chopped_outputs = outputs[:, :-1].reshape(-1, outputs.shape[-1])
@@ -57,20 +57,18 @@ class Transformer(nn.Module):
 
             loss = F.cross_entropy(chopped_outputs,
                                    shifted_targets,
-                                   ignore_index=pad)
-            ret.update({
-                'logp': logp,
-                'loss': loss
-            })
+                                   ignore_index=self.pad)
+        return logp, loss
 
-        if not self.training:
-            # Return for possible beam search and model ensembling
-            ret.update({
-                'mem': mem,
-                'src_mask': src_mask
-            })
-
-        return ret
+    def forward(self, src, tgt=None, **_):
+        """
+        Args:
+            src: packed sequence (*, input_dim)
+            tgt: packed sequence (*, output_dim)
+        """
+        print(tgt)
+        logp, loss = self.decode(tgt, self.encode(src))
+        return {'logp': logp, 'loss': loss}
 
     def __repr__(self):
         # s = super().__repr__() + '\n'
