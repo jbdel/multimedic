@@ -1,19 +1,23 @@
 import torch.nn as nn
 from .textencoder import TextEncoder
 from .decoder import ConditionalDecoder
+import numpy as np
+
 import torch
-from .utils import get_n_params
+from .utils import get_n_params, set_embeddings
 
 
 class RNN(nn.Module):
     def __init__(self, encoder, decoder, **kwargs):
         super().__init__()
+        self.kwargs = kwargs
 
         encoder_func = encoder.proto
         decoder_func = decoder.proto
 
         self.enc = eval(encoder_func)(**vars(encoder))
         self.dec = eval(decoder_func)(**vars(decoder), encoder_size=self.enc.ctx_size)
+
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -21,8 +25,14 @@ class RNN(nn.Module):
             # Skip 1-d biases and scalars
             if param.requires_grad and param.dim() > 1:
                 nn.init.kaiming_normal_(param.data)
-        # Reset padding embedding to 0
+
+        if 'src_emb' in self.kwargs:
+            set_embeddings(self.kwargs['src_emb'], self.enc.emb)
+        if 'tgt_emb' in self.kwargs:
+            set_embeddings(self.kwargs['tgt_emb'], self.dec.emb)
+
         if hasattr(self, 'enc') and hasattr(self.enc, 'emb'):
+            # Reset padding embedding to 0
             with torch.no_grad():
                 self.enc.emb.weight.data[0].fill_(0)
 

@@ -1,12 +1,13 @@
-name: myexp1rnnavgpool
+name: myexp1rnnavgpool_xrayvision
 dataset:
   proto: MultiDatasetRNN
   root: data/mediaca
   src: findings.tok
   tgt: impression.tok
-  npy: avgpool.npy
-  max_len: 100
-  use_bucket: True
+  npy: torchxrayvision_avgpool_one_image.npy
+  max_len: 80
+  eval_max_len: 200
+  use_bucket: False
 
 model:
   proto: RNN
@@ -34,10 +35,10 @@ model:
     tied_emb: True
     dec_init: feats
     dec_init_activ: tanh
-    dec_init_size: 2048
+    dec_init_size: 1024
     att_type: mlp
     att_activ: tanh
-    att_bottleneck: ctx
+    att_bottleneck: hid
     att_temp: 1.0
     transform_ctx: True
     mlp_bias: False
@@ -55,6 +56,7 @@ train:
   lr_min: 0.000001
   epochs: 99
   early_stop: 10
+  eval_start: 15
 
 
 validator:
@@ -69,5 +71,5 @@ ensemblor:
   device: cuda
   batch_size: 16
   beam_width: 12
-  splits: [dev]
+  splits: [dev, indiana_dev]
   mode: all # best,all

@@ -3,6 +3,10 @@ from .cocoeval import Rouge
 import shutil
 import pathlib
 import subprocess
+from six.moves import zip_longest
+from rouge_score import rouge_scorer
+from rouge_score import scoring
+import numpy as np
 
 
 def meteor_score(refs, hyps, language="en"):
@@ -116,21 +120,41 @@ def bleu_score(refs, hyps):
         return float_score
 
 
-def compute_scores(refs, hyps, base):
+def google_rouge(refs, hyps, rouges):
+    scorer = rouge_scorer.RougeScorer(rouges, use_stemmer=True)
+    scores = []
+    for target_rec, prediction_rec in zip_longest(refs, hyps):
+        if target_rec is None or prediction_rec is None:
+            raise ValueError("Must have equal number of lines across target and "
+                             "prediction.")
+        scores.append(scorer.score(target_rec, prediction_rec))
+
+    # aggregator = scoring.BootstrapAggregator()
+    # for score in scores:
+    #     aggregator.add_scores(score)
+    # print(aggregator.aggregate())
+    return np.mean([s['rouge2'].fmeasure for s in scores])
+
+
+def compute_scores(refs, hyps, base, split):
     assert len(refs) == len(hyps)
 
     # Dump
-    with open(base.format('refs.txt'), 'w') as f:
+    refs_file = base.format(split, 'refs.txt')
+    hyps_file = base.format(split, 'hyps.txt')
+
+    with open(refs_file, 'w') as f:
         f.write('\n'.join(refs))
 
-    with open(base.format('hyps.txt'), 'w') as f:
+    with open(hyps_file, 'w') as f:
         f.write('\n'.join(hyps))
 
     scores = {
-        "BLEU": bleu_score(base.format('refs.txt'), base.format('hyps.txt')),
-        "ROUGE": rouge_score(refs, hyps) * 100,
-        "METEOR": meteor_score(base.format('refs.txt'), base.format('hyps.txt')) * 100,
+        "BLEU": bleu_score(refs_file, hyps_file),
+        "ROUGE": google_rouge(refs, hyps, rouges=['rouge2']) * 100,
+        "METEOR": meteor_score(refs_file, hyps_file) * 100
     }
+
     scores = {k: round(v, 2) for k, v in scores.items()}
 
     return scores

@@ -22,7 +22,7 @@ def evaluation(models, opts, dl, lp_alpha=0.0):
     max_batch_size = opts.batch_size
     k = opts.beam_width
     inf = -1000
-    max_len = dl.dataset.src_len
+    max_len = dl.dataset.tgt_len
 
     results = []
 
@@ -34,9 +34,9 @@ def evaluation(models, opts, dl, lp_alpha=0.0):
 
     # Common parts
     encoders = [m.encode for m in models]
-    eos = Vocab.extra2idx('</s>')
-    unk = Vocab.extra2idx('<unk>')
-    bos = Vocab.extra2idx('<s>')
+    eos = Vocab.extra2idx('[SEP]')
+    unk = Vocab.extra2idx('[UNK]')
+    bos = Vocab.extra2idx('[CLS]')
 
     vocab = dl.dataset.tgt_vocab
     n_vocab = len(vocab)

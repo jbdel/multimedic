@@ -29,6 +29,7 @@ class Trainer(Executor):
 
         # Hyper
         self.lr = self.opts.lr
+        self.eval_start = self.opts.eval_start
         self.early_stop = 0
         self.optimizer = self.create_optimizer()
         print('\033[1m\033[91mModel {} created \033[0m'.format(type(self.model).__name__))
@@ -74,9 +75,8 @@ class Trainer(Executor):
             self.batch = batch
             yield
             self.iteration += 1
-            # if self.iteration == 1:
+            # if self.iteration == 10:
             #     break
-
 
     def update_lr(self):
         lr = self.opts.lr * 0.95 ** (self.epoch // 2)
@@ -127,19 +127,20 @@ class NMTTrainer(Trainer):
                                                        ppl))
 
         # self.update_lr()
-        self.evaluator.epoch = self.epoch
-        self.evaluator.start()
+        if self.epoch > self.eval_start - 1:
+            self.evaluator.epoch = self.epoch
+            self.evaluator.start()
 
-        # Fetch eval score and compute early stop
-        mean_rouge = np.mean([s['ROUGE'] for s in self.evaluator.scores])
-        if mean_rouge > self.evaluator.best_rouge:
-            self.saver.save(model=self.model.state_dict(), tag=mean_rouge, global_step=self.epoch)
-            self.evaluator.best_rouge = mean_rouge
-            self.early_stop = 0
-            self.current_patience = 0
-        else:
-            self.early_stop += 1
-            self.update_lr_plateau()
-        if self.early_stop == self.opts.early_stop:
-            print("Early stopped reached")
-            sys.exit()
+            # Fetch eval score and compute early stop
+            mean_rouge = np.mean([s['ROUGE'] for s in self.evaluator.scores])
+            if mean_rouge > self.evaluator.best_rouge:
+                self.saver.save(model=self.model.state_dict(), tag=mean_rouge, current_step=self.epoch)
+                self.evaluator.best_rouge = mean_rouge
+                self.early_stop = 0
+                self.current_patience = 0
+            else:
+                self.early_stop += 1
+                self.update_lr_plateau()
+            if self.early_stop == self.opts.early_stop:
+                print("Early stopped reached")
+                sys.exit()

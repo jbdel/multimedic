@@ -1,11 +1,12 @@
-name: myexp1rnn
+name: myexp1rnn_lundi
 dataset:
   proto: TextDatasetRNN
   root: data/mediaca
   src: findings.tok
   tgt: impression.tok
   max_len: 80
-  use_bucket: false
+  eval_max_len: 200
+  use_bucket: False
 
 model:
   proto: RNN
@@ -36,7 +37,7 @@ model:
     dec_init_size: None
     att_type: mlp
     att_activ: tanh
-    att_bottleneck: ctx
+    att_bottleneck: hid
     att_temp: 1.0
     transform_ctx: True
     mlp_bias: False
@@ -54,6 +55,7 @@ train:
   lr_min: 0.000001
   epochs: 99
   early_stop: 10
+  eval_start: 15
 
 
 validator:
@@ -68,5 +70,6 @@ ensemblor:
   device: cuda
   batch_size: 16
   beam_width: 12
-  splits: [dev]
-  mode: all # best,all
+#  splits: [dev, indiana_dev, indiana_test, stanford_test]
+  splits: [dev, indiana_dev]
+  mode: best-5 # best,all

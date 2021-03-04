@@ -22,17 +22,13 @@ class MultiDatasetRNN(TextDatasetRNN):
 
     def get_collate_fn(self):
         def collate_fn(batch):
-            collated = {}
-            collated['src'] = pad_sequence(
-                [s['src'] for s in batch], batch_first=False)
-            collated['tgt'] = pad_sequence(
-                [s['tgt'] for s in batch], batch_first=False)
-
+            collated = {
+                'src': pad_sequence([s['src'] for s in batch], batch_first=False),
+                'tgt': pad_sequence([s['tgt'] for s in batch], batch_first=False)}
             # Features
             v = torch.from_numpy(np.array(
                 [s['feats'] for s in batch], dtype='float32'))
             collated['feats'] = v.view(*v.size()[:2], -1).permute(2, 0, 1)
-
             return collated
 
         return collate_fn

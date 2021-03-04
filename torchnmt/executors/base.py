@@ -6,7 +6,6 @@ import copy
 
 from torch.utils.data import DataLoader
 from torch.utils.data.dataloader import default_collate
-from tensorboardX import SummaryWriter
 
 from torchnmt.networks import *
 from torchnmt.datasets import *
@@ -29,9 +28,6 @@ class Executor(object):
     def __init__(self, opts):
         self.opts = opts
         print_args(opts)
-
-    def create_writer(self, split):
-        return SummaryWriter('ckpt/{}/runs/{}'.format(self.opts.name, split))
 
     def create_model(self, state_dict=None):
         opts = self.opts.model
@@ -88,9 +84,7 @@ class Executor(object):
 
     def set_seed(self, seed=None):
         if seed is None:
-            seed = time.time()
-
-        seed = int(seed)
+            seed = int(random.randint(0, 9999999))
         random.seed(seed)
         np.random.seed(seed)
         torch.manual_seed(seed)

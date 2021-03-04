@@ -3,7 +3,7 @@ import random
 
 
 class Vocab():
-    extra = ['<pad>', '<unk>', '</s>', '<s>', '<mask>']
+    extra = ['[PAD]', '[UNK]', '[SEP]', '[CLS]', '[MASK]']
 
     def __init__(self, sentences):
         self.vocab = []
@@ -21,26 +21,26 @@ class Vocab():
         return Vocab.extra.index(e)
 
     def strip_beos_w(self, words):
-        if words[0] == '<s>':
+        if words[0] == '[CLS]':
             del words[0]
 
         result = []
         for w in words:
-            if w == '</s>':
+            if w == '[SEP]':
                 break
             result.append(w)
         return result
 
     def word2idx(self, word):
         if word not in self.inv_words:
-            word = '<unk>'
+            word = '[UNK]'
         return self.inv_words[word]
 
     def idx2word(self, idx):
         if idx < len(self):
             return self.words[idx]
         else:
-            return '<unk>'
+            return '[UNK]'
 
     def idxs2words(self, idxs):
         return [self.idx2word(idx) for idx in idxs]
@@ -60,7 +60,4 @@ class Vocab():
             yield w
 
     def dump(self, path):
-        json.dump(self.__dict__, path)
-
-    def load(self, path):
-        self.__dict__.update(json.load(path))
+        open(path, "w").write("\n".join(str(w) for w in self.words))
