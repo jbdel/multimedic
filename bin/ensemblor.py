@@ -5,7 +5,7 @@ import copy
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-from utils import parse_config, _parse_value
+from utils import parse_config, override
 from torchnmt.executors import *
 
 
@@ -24,21 +24,6 @@ def get(opts, mode):
     exec_opts.model = opts.model
     return exec_opts
 
-
-def override(opts, others):
-    # switch to dict
-    for conf in others:
-        try:
-            op = opts
-            key, value = conf.split(':')
-            keys = key.split('.')
-            for k in keys[:-1]:
-                op = getattr(op, k)
-            setattr(op, keys[-1], _parse_value(value))
-        except ValueError:
-            print(conf, 'badly formated')
-            raise
-    return opts
 
 def main():
     args, others = get_args()

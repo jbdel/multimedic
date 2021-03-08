@@ -136,12 +136,12 @@ def google_rouge(refs, hyps, rouges):
     return np.mean([s['rouge2'].fmeasure for s in scores])
 
 
-def compute_scores(refs, hyps, base, split):
+def compute_scores(refs, hyps, base):
     assert len(refs) == len(hyps)
 
     # Dump
-    refs_file = base.format(split, 'refs.txt')
-    hyps_file = base.format(split, 'hyps.txt')
+    refs_file = base.format('refs.txt')
+    hyps_file = base.format('hyps.txt')
 
     with open(refs_file, 'w') as f:
         f.write('\n'.join(refs))

@@ -22,13 +22,14 @@ class Trainer(Executor):
         # Model
         self.model = super().create_model()
         self.model.cuda()
-        # self.model = nn.DataParallel(self.model)
+        # self.model = torch.nn.DataParallel(self.model)
 
         # Evaluator
-        self.evaluator = NMTValidator(models=[self.model], opts=val_opts)
+        self.evaluator = NMTValidator(models=[self.model], opts=val_opts, seed=self.seed)
 
         # Hyper
         self.lr = self.opts.lr
+        self.early_stop_metric = self.opts.early_stop_metric
         self.eval_start = self.opts.eval_start
         self.early_stop = 0
         self.optimizer = self.create_optimizer()
@@ -65,10 +66,11 @@ class Trainer(Executor):
         self.pbar = tqdm.tqdm(self.dl, total=len(self.dl))
         for batch in self.pbar:
             self.pbar.set_description(
-                'Epoch {}, Lr {}, Loss {:.2f}, ROUGE {:.2f}, ES {}'.format(
+                'Epoch {}, Lr {}, Loss {:.2f}, {} {:.2f}, ES {}'.format(
                     self.epoch + 1,
                     self.lr,
                     self.loss,
+                    self.early_stop_metric,
                     self.evaluator.best_rouge,
                     self.early_stop,
                 ))
@@ -132,7 +134,7 @@ class NMTTrainer(Trainer):
             self.evaluator.start()
 
             # Fetch eval score and compute early stop
-            mean_rouge = np.mean([s['ROUGE'] for s in self.evaluator.scores])
+            mean_rouge = np.mean([s[self.early_stop_metric] for s in self.evaluator.scores])
             if mean_rouge > self.evaluator.best_rouge:
                 self.saver.save(model=self.model.state_dict(), tag=mean_rouge, current_step=self.epoch)
                 self.evaluator.best_rouge = mean_rouge

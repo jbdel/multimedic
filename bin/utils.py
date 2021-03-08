@@ -2,6 +2,7 @@ import argparse
 import yaml
 from ast import literal_eval
 
+
 def make_namespace(d):
     for key, value in d.items():
         if isinstance(value, dict):
@@ -14,6 +15,7 @@ def parse_config(p):
         d = yaml.load(stream, Loader=yaml.FullLoader)
     ns = make_namespace(d)
     return ns
+
 
 def _parse_value(value):
     """Automatic type conversion for configuration values.
@@ -34,3 +36,22 @@ def _parse_value(value):
         result = value
 
     return result
+
+
+def override(opts, others):
+    # switch to dict
+    for conf in others:
+        try:
+            op = opts
+            key, value = conf.split(':')
+            if "." not in key:
+                setattr(op, key, _parse_value(value))
+                continue
+            keys = key.split('.')
+            for k in keys[:-1]:
+                op = getattr(op, k)
+            setattr(op, keys[-1], _parse_value(value))
+        except ValueError:
+            print(conf, 'badly formated')
+            raise
+    return opts

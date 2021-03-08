@@ -69,7 +69,7 @@ ensemblor:
   proto: NMTEnsemblor
   device: cuda
   batch_size: 16
-  beam_width: 12
+  beam_width: 10
 #  splits: [dev, indiana_dev, indiana_test, stanford_test]
-  splits: [dev, indiana_dev]
-  mode: best-5 # best,all
+  splits: [indiana_dev]
+  mode: all # best,all

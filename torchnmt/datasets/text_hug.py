@@ -63,20 +63,23 @@ class TextDatasetHug(Dataset):
             #                          max_length=self.src_len)
             # tgt = self.tgt_tokenizer([s['tgt'] for s in batch], padding=True, truncation=True, return_tensors="pt",
             #                          max_length=self.tgt_len)
-
-            v = batch[0]["tgt"]
-            print(len(v))
-            print(v)
+            # v = batch[0]["tgt"]
+            # print(len(v))
+            # print(v)
             src = self.src_tokenizer([s['src'] for s in batch], padding=True, return_tensors="pt")
             tgt = self.tgt_tokenizer([s['tgt'] for s in batch], padding=True, return_tensors="pt")
-            print("####")
-            print(tgt["input_ids"].shape)
-            print(tgt["input_ids"][0])
-            print(len(tgt["input_ids"][0]))
-            print(self.tgt_tokenizer.decode(tgt["input_ids"][0], skip_special_tokens=False, clean_up_tokenization_spaces=False))
-            sys.exit()
+            # print(src)
+            # print(tgt)
+            # sys.exit()
+            # print("####")
+            # print(tgt["input_ids"].shape)
+            # print(tgt["input_ids"][0])
+            # print(len(tgt["input_ids"][0]))
+            # print(self.tgt_tokenizer.decode(tgt["input_ids"][0], skip_special_tokens=False, clean_up_tokenization_spaces=False))
             collated = {'input_ids': src.input_ids,
-                        'decoder_input_ids': tgt.input_ids}
+                        'attention_mask': src.attention_mask,
+                        'decoder_input_ids': tgt.input_ids,
+                        'decoder_attention_mask': tgt.attention_mask}
 
             return collated
 

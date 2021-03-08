@@ -7,7 +7,6 @@ import torch
 from .base import Executor
 from torchnmt.scorers.scores import compute_scores
 
-from torchnmt.networks.transformer.beam import evaluation as transformer_evaluation
 from torchnmt.networks.rnn.beam import evaluation as rnn_evaluation
 from torchnmt.networks.huggingface.beam import evaluation as transformerhug_evaluation
 from torchnmt.networks.rnn_new.beam import evaluation as rnnnew_evaluation
@@ -28,11 +27,12 @@ class Validator(Executor):
 
 
 class NMTValidator(Validator):
-    def __init__(self, models, opts):
+    def __init__(self, models, opts, seed=0):
         super().__init__(opts)
         self.models = models
         self.epoch = 0
         self.best_rouge = 0.0
+        self.seed = seed
 
         self.out_dir = os.path.join('ckpt',
                                     self.opts.name)
@@ -75,10 +75,10 @@ class NMTValidator(Validator):
         refs = self.refs
         hyps = self.hyps
         # Handle scores
-        base = os.path.join(self.out_dir, '{}_{}')
-        scores = compute_scores(refs, hyps, base, self.split)
+        base = os.path.join(self.out_dir, '{}_{}_{}'.format(self.split, self.seed, '{}'))
+        scores = compute_scores(refs, hyps, base)
         print(scores)
-        with open(base.format(self.split, 'metrics.txt'), 'a+') as f:
+        with open(base.format('metrics.txt'), 'a+') as f:
             f.write(str({
                 'split': self.split,
                 'epoch': self.epoch,
