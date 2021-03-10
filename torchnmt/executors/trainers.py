@@ -25,7 +25,7 @@ class Trainer(Executor):
         # self.model = torch.nn.DataParallel(self.model)
 
         # Evaluator
-        self.evaluator = NMTValidator(models=[self.model], opts=val_opts, seed=self.seed)
+        self.evaluator = NMTValidator(models=[self.model], metrics=self.opts.metrics, opts=val_opts, seed=self.seed)
 
         # Hyper
         self.lr = self.opts.lr
@@ -77,7 +77,7 @@ class Trainer(Executor):
             self.batch = batch
             yield
             self.iteration += 1
-            # if self.iteration == 10:
+            # if self.iteration == 100:
             #     break
 
     def update_lr(self):

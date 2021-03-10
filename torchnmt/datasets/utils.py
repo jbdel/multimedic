@@ -61,3 +61,21 @@ class Vocab():
 
     def dump(self, path):
         open(path, "w").write("\n".join(str(w) for w in self.words))
+
+
+class Labels(object):
+    def __init__(self, answers):
+        self.labels = sorted(set(answers))
+        self.inv_labels = {l: i for i, l in enumerate(self.labels)}
+
+    def label2idx(self, label):
+        return self.inv_labels[label]
+
+    def idx2label(self, idx):
+        return self.labels[idx]
+
+    def __len__(self):
+        return len(self.labels)
+
+    def __str__(self):
+        return "Label(#labels={})".format(len(self))

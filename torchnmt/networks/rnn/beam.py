@@ -13,9 +13,14 @@ def evaluation(models, opts, dl, lp_alpha=0.0):
         }
 
     def check_context_ndims(ctx_dict):
+        bs = []
         for name, (ctx, mask) in ctx_dict.items():
             assert ctx.dim() == 3, \
                 f"{name}'s 1st dim should always be a time dimension."
+            bs.append(ctx.size()[1])
+        # Making sure batch_size is correct for all samples
+        assert len(set(bs)) == 1
+        return set(bs).pop()
 
     # This is the batch-size requested by the user but with sorted
     # batches, efficient batch-size will be <= max_batch_size
@@ -49,8 +54,12 @@ def evaluation(models, opts, dl, lp_alpha=0.0):
 
     pbar = tqdm(dl, total=len(dl))
     for batch in pbar:
+        # Encode source modalities
         batch = {k: v.cuda() for k, v in batch.items()}
-        batch_size = batch['src'].size(1)
+        ctx_dicts = [encode(**batch) for encode in encoders]
+
+        # Sanity check one of the context dictionaries for dimensions and return batch_size
+        batch_size = check_context_ndims(ctx_dicts[0])
 
         # Always use the initial storage
         beam = beam_storage.narrow(1, 0, batch_size).zero_()
@@ -63,12 +72,6 @@ def evaluation(models, opts, dl, lp_alpha=0.0):
 
         # Tile indices to use in the loop to expand first dim
         tile = range(batch_size)
-
-        # Encode source modalities
-        ctx_dicts = [encode(**batch) for encode in encoders]
-
-        # Sanity check one of the context dictionaries for dimensions
-        check_context_ndims(ctx_dicts[0])
 
         # Get initial decoder state (N*H)
         h_ts = [f_init(ctx_dict) for f_init, ctx_dict in zip(f_inits, ctx_dicts)]
@@ -148,6 +151,7 @@ def evaluation(models, opts, dl, lp_alpha=0.0):
         results = [results[i] for i, j in sorted(
             enumerate(dl.batch_sampler.orig_idxs), key=lambda k: k[1])]
 
+    print(len(results))
     ret_refs = []
     for i in range(len(dl.dataset)):
         _, tgt = dl.dataset.samples[i]

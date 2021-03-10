@@ -17,9 +17,9 @@ class ConditionalDecoder(nn.Module):
     """A conditional decoder with attention à la dl4mt-tutorial."""
 
     def __init__(self, input_size, hidden_size, n_vocab, rnn_type,
-                 encoder_size=200, tied_emb=False, dec_init='zero', dec_init_activ='tanh',
-                 dec_init_size=None, att_type='mlp',
-                 att_activ='tanh', att_bottleneck='ctx', att_temp=1.0,
+                 encoder_size=200, tied_emb=False,
+                 dec_init='zero', dec_init_activ='tanh', dec_init_size=None,
+                 att_type='mlp', att_activ='tanh', att_bottleneck='ctx', att_temp=1.0,
                  transform_ctx=True, mlp_bias=False, dropout_out=0, **kwargs):
         super().__init__()
 

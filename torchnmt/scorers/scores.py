@@ -136,25 +136,33 @@ def google_rouge(refs, hyps, rouges):
     return np.mean([s['rouge2'].fmeasure for s in scores])
 
 
-def compute_scores(refs, hyps, base):
-    assert len(refs) == len(hyps)
+def accuracy(refs, hyps):
+    return np.mean(np.array(refs) == np.array(hyps))
+
+
+def compute_scores(refs, hyps, base, metrics):
+    assert len(refs) == len(hyps), '{} vs {}'.format(len(refs), len(hyps))
 
     # Dump
     refs_file = base.format('refs.txt')
     hyps_file = base.format('hyps.txt')
 
     with open(refs_file, 'w') as f:
-        f.write('\n'.join(refs))
+        f.write('\n'.join(map(str, refs)))
 
     with open(hyps_file, 'w') as f:
-        f.write('\n'.join(hyps))
+        f.write('\n'.join(map(str, hyps)))
 
-    scores = {
-        "BLEU": bleu_score(refs_file, hyps_file),
-        "ROUGE": google_rouge(refs, hyps, rouges=['rouge2']) * 100,
-        "METEOR": meteor_score(refs_file, hyps_file) * 100
-    }
-
-    scores = {k: round(v, 2) for k, v in scores.items()}
-
+    scores = {}
+    for metric in metrics:
+        if metric == 'BLEU':
+            scores["BLEU"] = round(bleu_score(refs_file, hyps_file), 2)
+        elif metric == 'ROUGE':
+            scores["ROUGE"] = round(google_rouge(refs, hyps, rouges=['rouge2']) * 100, 2)
+        elif metric == 'METEOR':
+            scores["METEOR"] = round(meteor_score(refs_file, hyps_file) * 100, 2)
+        elif metric == 'accuracy':
+            scores["accuracy"] = round(accuracy(refs, hyps) * 100, 2)
+        else:
+            raise NotImplementedError(metric)
     return scores

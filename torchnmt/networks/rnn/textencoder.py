@@ -14,6 +14,7 @@ def sort_batch(seqbatch):
     oidxs = torch.sort(sidxs)[1]
     return (oidxs, sidxs, slens.data.tolist(), omask.float())
 
+
 class TextEncoder(nn.Module):
     """A recurrent encoder with embedding layer.
 
@@ -53,10 +54,13 @@ root
             that may further be used in attention and/or decoder. `None`
             is returned if batch contains only sentences with same lengths.
     """
+
     def __init__(self, input_size, hidden_size, n_vocab, rnn_type,
-                 num_layers=1, bidirectional=True,
+                 num_layers=1, bidirectional=True, layer_norm=False,
+                 enc_init=None, enc_init_activ=None, enc_init_size=None,
+                 ctx_mul=None, ctx_mul_activ=None, ctx_mul_size=None,
                  dropout_rnn=0, dropout_emb=0, dropout_ctx=0,
-                 proj_dim=None, proj_activ=None, layer_norm=False, **kwargs):
+                 proj_dim=None, proj_activ=None, **kwargs):
         super().__init__()
 
         self.rnn_type = rnn_type.upper()
@@ -106,7 +110,45 @@ root
             output_layers.append(nn.Dropout(p=self.dropout_ctx))
         self.output = nn.Sequential(*output_layers)
 
-    def forward(self, x, **kwargs):
+        # Enc init
+        self.enc_init = enc_init
+        self.enc_init_activ = enc_init_activ
+        self.enc_init_size = enc_init_size
+
+        assert self.enc_init in (None, 'feats'), \
+            "dec_init '{}' not known".format(enc_init)
+
+        if self.enc_init is not None:
+            self.tile_factor = self.num_layers
+            if self.bidirectional:
+                self.tile_factor *= 2
+            self.ff_enc_init = FF(self.enc_init_size, self.hidden_size, activ=self.enc_init_activ)
+
+        # ctx_mul
+        self.ctx_mul = ctx_mul
+        self.ctx_mul_activ = ctx_mul_activ
+        self.ctx_mul_size = ctx_mul_size
+        assert self.ctx_mul in (None, 'feats'), \
+            "ctx_mul '{}' not known".format(ctx_mul)
+
+        if self.ctx_mul is not None:
+            self.out_dim = self.hidden_size
+            if self.bidirectional:
+                self.out_dim *= 2
+            self.ff_ctx_mul = FF(self.ctx_mul_size, self.out_dim, activ=self.ctx_mul_activ)
+
+    def f_init(self, feats):
+        """Returns the initial h_0 for the encoder."""
+        if self.enc_init is None:
+            return None
+        elif self.enc_init == 'feats':
+            return self.ff_enc_init(feats).expand(self.tile_factor, -1, -1).contiguous()
+        else:
+            raise NotImplementedError(self.enc_init)
+
+    def forward(self, x, feats=None, **kwargs):
+        h0 = self.f_init(feats)
+
         # Non-homogeneous batches possible
         # sort the batch by decreasing length of sequences
         # oidxs: to recover original order
@@ -121,9 +163,10 @@ root
 
         # We ignore last_state since we don't use it
         self.enc.flatten_parameters()
-        packed_hs, _ = self.enc(packed_emb)
+        packed_hs, _ = self.enc(packed_emb, h0)
 
         # Get hidden states and revert the order
         hs = pad_packed_sequence(packed_hs)[0][:, oidxs]
-
+        if self.ctx_mul is not None:
+            hs = hs * self.ff_ctx_mul(feats)
         return self.output(hs), mask

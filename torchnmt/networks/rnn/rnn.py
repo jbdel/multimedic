@@ -1,6 +1,8 @@
 import torch.nn as nn
 from .textencoder import TextEncoder
 from .decoder import ConditionalDecoder
+from torchnmt.networks.vqa.cnn import CNN
+
 import numpy as np
 
 import torch
@@ -37,10 +39,11 @@ class RNN(nn.Module):
                 self.enc.emb.weight.data[0].fill_(0)
 
     def encode(self, src, feats=None, **kwargs):
-        d = {'enc': self.enc(src)}
         if feats is not None:
-            d['feats'] = (feats.cuda(), None)
-        return d
+            feats = feats.cuda()
+            return {'enc': self.enc(src, feats), 'feats': (feats, None)}
+        else:
+            return {'enc': self.enc(src)}
 
     def forward(self, src, tgt, **kwargs):
         # Get loss dict

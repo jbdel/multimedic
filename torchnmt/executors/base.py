@@ -9,7 +9,6 @@ from torch.utils.data.dataloader import default_collate
 
 from torchnmt.networks import *
 from torchnmt.datasets import *
-from torchnmt.datasets import BucketBatchSampler
 from torch.utils.data.sampler import BatchSampler, SequentialSampler, RandomSampler
 
 from .utils import print_args
@@ -55,21 +54,11 @@ class Executor(object):
         else:
             collate_fn = default_collate
 
-        if not hasattr(self.opts.dataset, 'use_bucket'):
-            self.opts.dataset.use_bucket = False
-
         if split == 'train':
             print('\033[1m\033[91mDataLoader \033[0m')
-            if self.opts.dataset.use_bucket:
-                sort_lens = dataset.lengths
-                sampler = BucketBatchSampler(
-                    batch_size=self.opts.batch_size,
-                    sort_lens=sort_lens,
-                    max_len=dataset.src_len)
-            else:
-                sampler = BatchSampler(
-                    RandomSampler(dataset),
-                    batch_size=self.opts.batch_size, drop_last=False)
+            sampler = BatchSampler(
+                RandomSampler(dataset),
+                batch_size=self.opts.batch_size, drop_last=False)
             print('Using \033[1m\033[94m' + type(sampler.sampler).__name__ + '\033[0m')
 
         else:  # eval or test

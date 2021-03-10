@@ -1,21 +1,23 @@
-name: myexp1rnn_lundi
+name: mediaqa_emb
 dataset:
   proto: TextDatasetRNN
-  root: data/mediaca
+  root: data/new_mediaca
   src: findings.tok
   tgt: impression.tok
   max_len: 80
   eval_max_len: 200
-  use_bucket: False
 
 model:
   proto: RNN
+  src_emb: data/new_mediaca/src_biowordvec.npy
+  tgt_emb: data/new_mediaca/tgt_biowordvec.npy
+
   encoder:
     proto: TextEncoder
     rnn_type: GRU
     input_size: 200
     hidden_size: 320
-    n_vocab: 8769
+    n_vocab: 5804
     num_layers: 2
     bidirectional: True
     proj_dim: False
@@ -29,7 +31,7 @@ model:
     proto: ConditionalDecoder
     input_size: 200
     hidden_size: 320
-    n_vocab: 7167 # impression
+    n_vocab: 4447 # impression
     rnn_type: GRU
     tied_emb: True
     dec_init: zero
@@ -55,21 +57,21 @@ train:
   lr_min: 0.000001
   epochs: 99
   early_stop: 10
-  eval_start: 15
-
+  eval_start: 0
+  early_stop_metric: ROUGE
 
 validator:
   proto: NMTValidator
   device: cuda
   batch_size: 16
-  beam_width: 12
-  splits: [dev]
+  beam_width: 8
+  splits: [indiana_dev]
 
 ensemblor:
   proto: NMTEnsemblor
   device: cuda
   batch_size: 16
-  beam_width: 10
-#  splits: [dev, indiana_dev, indiana_test, stanford_test]
-  splits: [indiana_dev]
+  beam_width: 8
+#  splits: [indiana_dev]
+  splits: [indiana_dev, indiana_test, stanford_test]
   mode: all # best,all

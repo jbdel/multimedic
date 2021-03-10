@@ -1,0 +1,69 @@
+name: myvqa
+
+dataset:
+  proto: VQADataset
+  root: data/2020-VQA
+  image_path: data/2020-VQA/images
+  questions: q.txt
+  images: ids.txt
+  answers: a.txt
+  max_len: 80
+  load_memory: True
+
+model:
+  proto: VQA
+  visual:
+    proto: CNN
+    backbone: resnet50
+    output_layer: avgpool
+    dropout_out: 0.1
+
+  linguistic:
+    proto: TextEncoder
+    rnn_type: GRU
+    input_size: 200
+    hidden_size: 320
+    visual_size: 2048
+    n_vocab: 43
+    num_layers: 2
+    bidirectional: True
+    proj_dim: False
+    proj_activ: None
+    layer_norm: False
+    dropout_rnn: 0
+    dropout_emb: 0.1
+    dropout_ctx: 0.1
+
+  classif:
+    proto: Classifier
+    input_size: 2688
+    num_classes: 332
+    dropout: 0.0
+
+train:
+  proto: NMTTrainer
+  device: cuda
+  lr: 0.0001
+  weight_decay: 0.00001 #1e-05
+  batch_size: 16
+  lr_decay_factor: 0.5
+  lr_decay_patience: 2
+  lr_min: 0.000001
+  epochs: 99
+  early_stop: 10
+  eval_start: 0
+  metrics: [accuracy]
+  early_stop_metric: accuracy
+
+validator:
+  proto: NMTValidator
+  device: cuda
+  batch_size: 16
+  splits: [val]
+
+ensemblor:
+  proto: NMTEnsemblor
+  device: cuda
+  batch_size: 16
+  splits: [val]
+  mode: all # best,all

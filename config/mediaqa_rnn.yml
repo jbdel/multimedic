@@ -1,22 +1,21 @@
-name: myexp1rnnavgpool_xrayvision
+name: mediaqa
 dataset:
-  proto: MultiDatasetRNN
-  root: data/mediaca
+  proto: TextDatasetRNN
+  root: data/mediaqa
   src: findings.tok
   tgt: impression.tok
-  npy: torchxrayvision_avgpool_one_image.npy
   max_len: 80
   eval_max_len: 200
-  use_bucket: False
 
 model:
   proto: RNN
+
   encoder:
     proto: TextEncoder
     rnn_type: GRU
     input_size: 200
     hidden_size: 320
-    n_vocab: 8769
+    n_vocab: 5804
     num_layers: 2
     bidirectional: True
     proj_dim: False
@@ -30,12 +29,12 @@ model:
     proto: ConditionalDecoder
     input_size: 200
     hidden_size: 320
-    n_vocab: 7167 # impression
+    n_vocab: 4447 # impression
     rnn_type: GRU
     tied_emb: True
-    dec_init: feats
+    dec_init: zero
     dec_init_activ: tanh
-    dec_init_size: 1024
+    dec_init_size: None
     att_type: mlp
     att_activ: tanh
     att_bottleneck: hid
@@ -56,20 +55,22 @@ train:
   lr_min: 0.000001
   epochs: 99
   early_stop: 10
-  eval_start: 15
-
+  eval_start: 0
+  metrics: [ROUGE, BLEU, METEOR]
+  early_stop_metric: ROUGE
 
 validator:
   proto: NMTValidator
   device: cuda
   batch_size: 16
-  beam_width: 12
-  splits: [dev]
+  beam_width: 8
+  splits: [indiana_dev]
 
 ensemblor:
   proto: NMTEnsemblor
   device: cuda
   batch_size: 16
-  beam_width: 12
-  splits: [dev, indiana_dev]
+  beam_width: 8
+#  splits: [indiana_dev]
+  splits: [indiana_dev, indiana_test, stanford_test]
   mode: all # best,all

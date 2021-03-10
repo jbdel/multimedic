@@ -9,7 +9,7 @@ from torchnmt.scorers.scores import compute_scores
 
 from torchnmt.networks.rnn.beam import evaluation as rnn_evaluation
 from torchnmt.networks.huggingface.beam import evaluation as transformerhug_evaluation
-from torchnmt.networks.rnn_new.beam import evaluation as rnnnew_evaluation
+from torchnmt.networks.vqa.beam import evaluation as vqa_evaluation
 
 
 # from torchnmt.networks.rnn.beam import eval as rnn_eval
@@ -27,9 +27,10 @@ class Validator(Executor):
 
 
 class NMTValidator(Validator):
-    def __init__(self, models, opts, seed=0):
+    def __init__(self, models, metrics, opts, seed=0):
         super().__init__(opts)
         self.models = models
+        self.metrics = metrics
         self.epoch = 0
         self.best_rouge = 0.0
         self.seed = seed
@@ -50,11 +51,10 @@ class NMTValidator(Validator):
 
         for split, dl in splits:
             print('Running split: {} by ensembling {} models. '
-                  'Using {} with src_len {} and trg_len {}'.format(split,
-                                                                   len(self.models),
-                                                                   type(dl.batch_sampler.sampler).__name__,
-                                                                   dl.dataset.src_len,
-                                                                   dl.dataset.tgt_len))
+                  'Using {}.'.format(split,
+                                     len(self.models),
+                                     type(dl.batch_sampler.sampler).__name__,
+                                     ))
             self.split = split
             self.dl = dl
             yield
@@ -76,7 +76,7 @@ class NMTValidator(Validator):
         hyps = self.hyps
         # Handle scores
         base = os.path.join(self.out_dir, '{}_{}_{}'.format(self.split, self.seed, '{}'))
-        scores = compute_scores(refs, hyps, base)
+        scores = compute_scores(refs, hyps, base, self.metrics)
         print(scores)
         with open(base.format('metrics.txt'), 'a+') as f:
             f.write(str({

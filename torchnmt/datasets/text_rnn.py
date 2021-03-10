@@ -63,11 +63,15 @@ class TextDatasetRNN(Dataset):
         """
         with open(path, 'r') as f:
             content = f.read().strip()
-        return [s.strip().split() for s in content.split('\n')]
+        return [s for s in content.split('\n')]
 
     def make_samples(self, root, split, src, tgt):
         src = self.load_file(os.path.join(root, split + '.' + src))
         tgt = self.load_file(os.path.join(root, split + '.' + tgt))
+
+        src = [s.strip().split() for s in src]
+        tgt = [t.strip().split() for t in tgt]
+
         return list(zip(src, tgt))
 
     def __getitem__(self, index):
